@@ -51,8 +51,7 @@ public class RSSignatureCaptureView extends View {
 	private Canvas mSignatureBitmapCanvas = null;
 	private SignatureCallback callback;
 	private boolean dragged = false;
-	private boolean multipleTouchDragged = false;
-	private int SCROLL_THRESHOLD = 5;
+	private int SCROLL_THRESHOLD = 50;
 
 	public interface SignatureCallback {
 		void onDragged();
@@ -69,8 +68,8 @@ public class RSSignatureCaptureView extends View {
 		mPaint.setStrokeCap(Paint.Cap.ROUND);
 		mPaint.setStrokeJoin(Paint.Join.ROUND);
 
-		mMinWidth = convertDpToPx(8);
-		mMaxWidth = convertDpToPx(16);
+		mMinWidth = convertDpToPx(2);
+		mMaxWidth = convertDpToPx(5);
 		mVelocityFilterWeight = 0.4f;
 		mPaint.setColor(Color.BLACK);
 
@@ -198,18 +197,6 @@ public class RSSignatureCaptureView extends View {
 		}
 	}
 
-	public void setMinStrokeWidth(int minStrokeWidth) {
-		mMinWidth = minStrokeWidth;
-	}
-
-	public void setMaxStrokeWidth(int maxStrokeWidth) {
-		mMaxWidth = maxStrokeWidth;
-	}
-
-	public void setStrokeColor(int color) {
-		mPaint.setColor(color);
-	}
-
 	private float strokeWidth(float velocity) {
 		return Math.max(mMaxWidth / (velocity + 1), mMinWidth);
 	}
@@ -239,42 +226,35 @@ public class RSSignatureCaptureView extends View {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		if (!isEnabled() || event.getPointerCount() > 1 || (multipleTouchDragged && event.getAction() != MotionEvent.ACTION_UP)) {
-		    multipleTouchDragged = true;
+		if (!isEnabled())
 			return false;
-		}
 
 		float eventX = event.getX();
 		float eventY = event.getY();
 
 		switch (event.getAction()) {
 			case MotionEvent.ACTION_DOWN:
-                mLastTouchX = eventX;
-                mLastTouchY = eventY;
 				getParent().requestDisallowInterceptTouchEvent(true);
 				mPoints.clear();
 				mPath.moveTo(eventX, eventY);
+				mLastTouchX = eventX;
+				mLastTouchY = eventY;
 				addPoint(new TimedPoint(eventX, eventY));
 
 			case MotionEvent.ACTION_MOVE:
-                if((Math.abs(mLastTouchX - eventX) < SCROLL_THRESHOLD || Math.abs(mLastTouchY - eventY) < SCROLL_THRESHOLD) && dragged) {
-                    return false;
-                }
 				resetDirtyRect(eventX, eventY);
 				addPoint(new TimedPoint(eventX, eventY));
-                dragged = true;
+				if((Math.abs(mLastTouchX - eventX) > SCROLL_THRESHOLD || Math.abs(mLastTouchY - eventY) > SCROLL_THRESHOLD)){
+					dragged = true;
+				}
 				break;
 
 			case MotionEvent.ACTION_UP:
-			    if(mPoints.size() >= 3) {
-                    resetDirtyRect(eventX, eventY);
-                    addPoint(new TimedPoint(eventX, eventY));
-                    getParent().requestDisallowInterceptTouchEvent(true);
-                    setIsEmpty(false);
-                    sendDragEventToReact();
-			    }
-                dragged = false;
-                multipleTouchDragged = false;
+				resetDirtyRect(eventX, eventY);
+				addPoint(new TimedPoint(eventX, eventY));
+				getParent().requestDisallowInterceptTouchEvent(true);
+				setIsEmpty(false);
+				sendDragEventToReact();
 				break;
 
 			default:
